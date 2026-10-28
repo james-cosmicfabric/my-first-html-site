@@ -1,2 +1,2 @@
-# my-first-html-site
-A simple repository for sharing my first HTML project with others.
+# Team Gyro prototype 3D
+Choose the color strenght you desire
