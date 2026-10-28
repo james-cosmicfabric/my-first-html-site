@@ -1,2 +1,2 @@
-# Team Gyro prototype 3D
-Choose the color strenght you desire
+# TGprototype1
+Choose your opacity
