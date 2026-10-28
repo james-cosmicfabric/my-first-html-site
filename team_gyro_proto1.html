@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CE WS2026 · Team gyro proto1 &amp; Case Study</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #05070b;
+      color: #f1f5f9;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 85% 100%, rgba(192, 132, 252, 0.06) 0%, transparent 45%);
+    }
+    .font-display {
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+    }
+    /* Interactive 3D Woven Facets */
+    .woven-facet {
+      transition: stroke 0.15s ease, filter 0.15s ease;
+      cursor: pointer;
+    }
+    .woven-facet:hover {
+      stroke: #ffffff !important;
+      stroke-width: 1.8px !important;
+      filter: brightness(1.7) saturate(1.2) drop-shadow(0 0 8px rgba(255,255,255,0.38));
+    }
+    .macro-dim-poly {
+      transition: fill-opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease, stroke-width 0.2s ease;
+      cursor: pointer;
+    }
+    .macro-dim-poly:hover {
+      filter: brightness(1.65) saturate(1.15) drop-shadow(0 0 14px rgba(255,255,255,0.34));
+      stroke-width: 2.4px !important;
+    }
+    .core-dim-poly {
+      transition: filter 0.25s ease;
+      cursor: pointer;
+    }
+    .core-dim-poly:hover {
+      filter: brightness(1.6) drop-shadow(0 0 8px rgba(255,255,255,0.3));
+    }
+    /* The visible apex jewel is separate from its larger, stable pointer target.
+       Avoid SVG transform scaling, which can make the cursor enter/leave repeatedly. */
+    .apex-hit-target {
+      fill: transparent;
+      stroke: transparent;
+      pointer-events: all;
+      cursor: pointer;
+    }
+    .apex-dot {
+      pointer-events: none;
+      transition: filter 0.15s ease;
+    }
+    .apex-control:hover .apex-dot {
+      filter: brightness(1.9) drop-shadow(0 0 5px rgba(255,255,255,0.95));
+    }
+    @keyframes pulseRing {
+      0%, 100% { stroke-opacity: 0.95; stroke-width: 2px; }
+      50% { stroke-opacity: 0.35; stroke-width: 1px; }
+    }
+    .active-target-ring {
+      animation: pulseRing 1.6s infinite ease-in-out;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05070b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col select-none">
+
+  <!-- 1. COMPACT TOP BAR (46px) -->
+  <header class="h-11 shrink-0 bg-[#0a0d14]/95 backdrop-blur-md border-b border-[#1b2234] px-3.5 flex items-center justify-between gap-2 z-20">
+    <!-- Left: Brand & 21-Step Progress Tracker -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-6 h-6 rounded-md bg-gradient-to-br from-cyan-400/20 to-indigo-500/20 border border-cyan-400/40 flex items-center justify-center shadow-inner">
+        <svg class="w-3.5 h-3.5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polygon points="12 3 21 19 3 19" />
+          <line x1="12" y1="3" x2="12" y2="19" />
+          <line x1="7.5" y1="11" x2="16.5" y2="11" />
+        </svg>
+      </div>
+      <span class="font-display font-bold text-xs sm:text-sm tracking-tight text-slate-100">
+        CE WS2026 <span class="text-slate-600 font-normal mx-0.5">&middot;</span> <span class="text-cyan-400">Team gyro proto1</span>
+      </span>
+
+      <!-- 21-Choice Progress Counter Pill -->
+      <div class="flex items-center gap-2 bg-[#111726] border border-[#232d42] rounded-lg px-2.5 py-1 ml-1">
+        <span id="progressCountText" class="font-mono text-[11px] font-bold text-cyan-300">0 / 21 Chosen</span>
+        <div class="w-16 sm:w-20 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div id="progressBarFill" class="h-full bg-gradient-to-r from-cyan-400 to-indigo-400 transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: View Switcher (21 Categories vs Final 7 Dimensions Picture) -->
+    <div class="flex items-center bg-[#0f1420] p-0.5 rounded-lg border border-[#1f293d]">
+      <button id="modeInputBtn"
+              onclick="switchViewMode('INPUT')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition flex items-center gap-1.5">
+        <span>21 Categories</span>
+      </button>
+      <button id="modeFinalBtn"
+              onclick="switchViewMode('FINAL')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition flex items-center gap-1.5">
+        <span>7-Dimension Picture</span>
+      </button>
+    </div>
+
+    <!-- Right: Auto-Play Wave, Palette & Reset -->
+    <div class="flex items-center gap-1.5">
+      <button id="autoWaveBtn"
+              onclick="triggerAutoPlayWave()"
+              title="Animate 21 feedback choices merging 3 triangles into 1, then reveal the 7-Dimension Final Picture"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-400/35 transition flex items-center gap-1">
+        <span>⚡ Auto-Play 21 Wave</span>
+      </button>
+
+      <button id="paletteToggleBtn"
+              class="hidden sm:flex px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#141a29] hover:bg-[#1c2436] text-slate-200 border border-[#263044] transition items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-gradient-to-r from-rose-500 via-emerald-400 to-violet-500"></span>
+        <span id="paletteLabel">7 Hues</span>
+      </button>
+
+      <button id="resetSchemeBtn"
+              title="Reset all 21 subcategories back to their 3-triangle starting scheme"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition">
+        Reset (0/21)
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. MAIN WORKSPACE -->
+  <main class="flex-1 flex flex-col justify-between px-3 sm:px-5 py-2 gap-2 max-w-[1740px] w-full mx-auto overflow-hidden">
+
+    <!-- A. DYNAMIC HUD BAR (Adapts between 21-Step Choice Mode & 7-Dimension Final Summary Mode) -->
+    <section id="hudBar" class="shrink-0 bg-[#0d121d] rounded-xl border border-[#1e273b] px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 shadow-md">
+      <!-- Populated dynamically by renderHudBar() -->
+    </section>
+
+    <!-- B. 3D WOVEN INTERLOCKING TRIANGLES SVG CANVAS -->
+    <section class="relative flex-1 min-h-[245px] bg-[#080b12] rounded-xl border border-[#1a2234] shadow-2xl flex items-center justify-center overflow-x-auto overflow-y-hidden px-2">
+      <div class="w-full min-w-[1080px] h-full flex items-center justify-center">
+        <svg id="wovenSvg" viewBox="0 0 1450 308" class="w-full max-h-[41vh] h-auto overflow-visible" xmlns="http://www.w3.org/2000/svg">
+          <!-- Populated dynamically by JavaScript -->
+        </svg>
+      </div>
+    </section>
+
+    <!-- C. COMPACT 7-COLUMN DIMENSION RESULTS STRIP -->
+    <section id="dimensionGrid" class="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
+      <!-- Populated dynamically by JavaScript -->
+    </section>
+
+  </main>
+
+  <script>
+    /*************************************************************************
+     * 1. 7 DIMENSIONS & 21 SUBCATEGORIES DATA (SINGLE STARTING COLOR PER DIM)
+     *************************************************************************/
+    const OPACITY_META = {
+      0: { level: 0, alpha: 0.00, pct: "3-Split", tag: "Unchosen",   word: "pending" },
+      1: { level: 1, alpha: 0.25, pct: "25%",     tag: "Emerging",   word: "emerging (25%)" },
+      2: { level: 2, alpha: 0.50, pct: "50%",     tag: "Developing", word: "developing (50%)" },
+      3: { level: 3, alpha: 0.75, pct: "75%",     tag: "Strong",     word: "strong (75%)" },
+      4: { level: 4, alpha: 1.00, pct: "100%",    tag: "Core Peak",  word: "core peak (100%)" }
+    };
+
+    const DIMENSIONS = [
+      {
+        id: "attitude",
+        name: "ATTITUDE",
+        orientation: "UP",
+        color: "#f43f5e", // Crimson Rose
+        subcategories: [
+          {
+            id: "respect",
+            name: "RESPECT",
+            shortName: "RESPECT",
+            pos: "TOP",
+            desc: "Values differing views, treats peers with dignity, and maintains constructive dialogue under pressure.",
+            traits: { 1: "guarded respect", 2: "polite baseline", 3: "inclusive respect", 4: "deep mutual dignity" }
+          },
+          {
+            id: "authenticity",
+            name: "AUTHENTICITY",
+            shortName: "AUTHENTICITY",
+            pos: "BL",
+            desc: "Stays true to genuine personality and spirit rather than projecting an artificial image.",
+            traits: { 1: "reserved persona", 2: "selective openness", 3: "grounded honesty", 4: "fearless authenticity" }
+          },
+          {
+            id: "failure_handling",
+            name: "FAILURE HANDLING",
+            shortName: "FAILURE HANDLING",
+            pos: "BR",
+            desc: "Understands the complexity of how errors happen and turns mistakes into shared learning.",
+            traits: { 1: "cautious on setbacks", 2: "steady recovery", 3: "constructive pivoting", 4: "antifragile learning" }
+          }
+        ]
+      },
+      {
+        id: "support",
+        name: "SUPPORT",
+        orientation: "DOWN",
+        color: "#fb923c", // Warm Amber
+        subcategories: [
+          {
+            id: "motivating",
+            name: "MOTIVATING",
+            shortName: "MOTIVATING",
+            pos: "TL",
+            desc: "Inspires teammates by showing belief in their capabilities and reinforcing shared purpose.",
+            traits: { 1: "quiet encouragement", 2: "upbeat check-ins", 3: "energizing presence", 4: "catalyst for morale" }
+          },
+          {
+            id: "helping",
+            name: "HELPING",
+            shortName: "HELPING",
+            pos: "TR",
+            desc: "Steps in proactively to assist overburdened teammates and share operational workload.",
+            traits: { 1: "helps when asked", 2: "reliable backup", 3: "proactive unblocker", 4: "selfless force-multiplier" }
+          },
+          {
+            id: "listening",
+            name: "LISTENING",
+            shortName: "LISTENING",
+            pos: "BOTTOM",
+            desc: "Practices active, empathetic listening to absorb nuances before jumping to conclusions.",
+            traits: { 1: "task-focused hearing", 2: "attentive in meetings", 3: "active paraphrasing", 4: "deep empathetic synthesis" }
+          }
+        ]
+      },
+      {
+        id: "initiative",
+        name: "INITIATIVE",
+        orientation: "UP",
+        color: "#facc15", // Gold
+        subcategories: [
+          {
+            id: "take_lead",
+            name: "TAKE LEAD",
+            shortName: "TAKE LEAD",
+            pos: "TOP",
+            desc: "Takes ownership in ambiguous situations, guiding direction and organizing collective momentum.",
+            traits: { 1: "awaits direction", 2: "leads familiar tasks", 3: "steps up decisively", 4: "empowering trailblazer" }
+          },
+          {
+            id: "co_create",
+            name: "CO-CREATE",
+            shortName: "CO-CREATE",
+            pos: "BL",
+            desc: "Builds generatively upon teammates' sparks in real time to craft shared outcomes.",
+            traits: { 1: "prefers solo drafting", 2: "contributes feedback", 3: "generative jammer", 4: "high-synergy co-creator" }
+          },
+          {
+            id: "cooperate",
+            name: "COOPERATE",
+            shortName: "COOPERATE",
+            pos: "BR",
+            desc: "Coordinates smoothly across boundaries and aligns personal effort with group workflow.",
+            traits: { 1: "independent workflow", 2: "smooth handoffs", 3: "adaptive team player", 4: "seamless bridge-builder" }
+          }
+        ]
+      },
+      {
+        id: "efficiency",
+        name: "EFFICIENCY",
+        orientation: "DOWN",
+        color: "#34d399", // Emerald
+        subcategories: [
+          {
+            id: "setting_goals",
+            name: "SETTING GOALS",
+            shortName: "SETTING GOALS",
+            pos: "TL",
+            desc: "Establishes clear, actionable targets and keeps the team focused on high-impact priorities.",
+            traits: { 1: "ad-hoc targeting", 2: "tracks milestones", 3: "crisp goal framing", 4: "strategic north-star" }
+          },
+          {
+            id: "roles",
+            name: "ROLES",
+            shortName: "ROLES",
+            pos: "TR",
+            desc: "Defines and respects clear responsibilities so strengths match tasks without overlap.",
+            traits: { 1: "fluid boundaries", 2: "clear own scope", 3: "aligns team scopes", 4: "dynamic role orchestrator" }
+          },
+          {
+            id: "comm_work_env",
+            name: "COMMUNICATION & WORK ENVIRONMENT",
+            shortName: "COMM. & WORK ENV.",
+            pos: "BOTTOM",
+            desc: "Maintains structured information flow and a calm, productive working atmosphere.",
+            traits: { 1: "reactive updates", 2: "steady standups", 3: "clean information flow", 4: "architect of team flow" }
+          }
+        ]
+      },
+      {
+        id: "creativity",
+        name: "CREATIVITY",
+        orientation: "UP",
+        color: "#22d3ee", // Cyan
+        subcategories: [
+          {
+            id: "positivity",
+            name: "POSITIVITY",
+            shortName: "POSITIVITY",
+            pos: "TOP",
+            desc: "Approaches open-ended problems with constructive optimism that unlocks creative flow.",
+            traits: { 1: "pragmatic caution", 2: "open-minded", 3: "constructive optimism", 4: "infectious creative spark" }
+          },
+          {
+            id: "creative_powers",
+            name: "CREATIVE POWERS",
+            shortName: "CREATIVE POWERS",
+            pos: "BL",
+            desc: "Understands the entire picture and connects non-obvious dots across domains.",
+            traits: { 1: "standard patterns", 2: "solid adaptations", 3: "cross-domain synthesis", 4: "visionary dot-connector" }
+          },
+          {
+            id: "originality",
+            name: "ORIGINALITY",
+            shortName: "ORIGINALITY",
+            pos: "BR",
+            desc: "Questions default assumptions and introduces novel, unexpected angles into creation.",
+            traits: { 1: "proven conventions", 2: "fresh refinements", 3: "distinctive angles", 4: "bold paradigm-shifter" }
+          }
+        ]
+      },
+      {
+        id: "openess",
+        name: "OPENESS",
+        orientation: "DOWN",
+        color: "#60a5fa", // Cobalt Blue
+        subcategories: [
+          {
+            id: "learning",
+            name: "LEARNING",
+            shortName: "LEARNING",
+            pos: "TL",
+            desc: "Eagerly acquires new skills, seeks critique, and shares lessons across the group.",
+            traits: { 1: "comfort-zone focus", 2: "learns when needed", 3: "curious experimenter", 4: "voracious learning engine" }
+          },
+          {
+            id: "diversity",
+            name: "DIVERSITY",
+            shortName: "DIVERSITY",
+            pos: "TR",
+            desc: "Appreciates and integrates different cultural, disciplinary, and cognitive perspectives.",
+            traits: { 1: "familiar styles", 2: "welcoming stance", 3: "seeks contrasting views", 4: "champion of cognitive diversity" }
+          },
+          {
+            id: "transparency",
+            name: "TRANSPARENCY",
+            shortName: "TRANSPARENCY",
+            pos: "BOTTOM",
+            desc: "Shares progress, roadblocks, and reasoning openly so the team operates with shared truth.",
+            traits: { 1: "late status sharing", 2: "honest at check-ins", 3: "open work-in-progress", 4: "radical real-time clarity" }
+          }
+        ]
+      },
+      {
+        id: "performance",
+        name: "PERFORMANCE",
+        orientation: "UP",
+        color: "#c084fc", // Violet
+        subcategories: [
+          {
+            id: "engagement",
+            name: "ENGAGEMENT",
+            shortName: "ENGAGEMENT",
+            pos: "TOP",
+            desc: "Fully invested in the creation process and team mission from kickoff through delivery.",
+            traits: { 1: "selective focus", 2: "steady attendance", 3: "proactive ownership", 4: "unwavering dedication" }
+          },
+          {
+            id: "contribution",
+            name: "CONTRIBUTION",
+            shortName: "CONTRIBUTION",
+            pos: "BL",
+            desc: "Delivers high-impact, thorough outputs that substantially advance shared deliverables.",
+            traits: { 1: "baseline output", 2: "dependable delivery", 3: "high-leverage craft", 4: "cornerstone contributor" }
+          },
+          {
+            id: "timeliness",
+            name: "TIMELINESS",
+            shortName: "TIMELINESS",
+            pos: "BR",
+            desc: "Follows the agreed plan, honors deadlines, and communicates early if schedules shift.",
+            traits: { 1: "deadline drift", 2: "meets major dates", 3: "punctual & buffered", 4: "masterful pace-setter" }
+          }
+        ]
+      }
+    ];
+
+    // Flat ordered list of all 21 subcategories (1..21)
+    const ORDERED_SUBCATS = [];
+    DIMENSIONS.forEach(dim => {
+      dim.subcategories.forEach(sub => {
+        ORDERED_SUBCATS.push({ dim, sub });
+      });
+    });
+
+    const RUBRIC_DESCRIPTIONS = {
+      transparency: [
+        "in an unclear way and shows no interest in sharing for the benefit of the team as a collective",
+        "on a shallow level, trying to project an image of themselves which is not who they really are",
+        "clearly and translates their experience and ideas in a constructive way for the team.",
+        "empathically and through facts so a conversation or even an argument feels light, constructive and allows the flow of ideas and thoughts for everyone"
+      ],
+      diversity: [
+        "has a fixed opinion about everything and wants things to be done a certain way only",
+        "has mostly predetermined ideas but is open to other ways of thinking in a few familiar areas",
+        "is open and flexible enough to accept different ways of approaching situations",
+        "approaches situations openly and actively invites others to share their unique experiences"
+      ],
+      learning: [
+        "thinks they know everything",
+        "acknowledges that there are lessons to learn but does not incorporate it in their behaviour",
+        "seems enthusiastic and happy to apply their experience to improve team dynamics",
+        "integrates lessons learnt from other people's behaviour, knowledge and experience right away"
+      ],
+      listening: [
+        "is respectful but prefers to take a back seat when he or she is not the centre of attention",
+        "is attentive to everyone's contribution in a conversation",
+        "listens to everyone's contribution in a conversation and asks relevant questions",
+        "is appreciative towards other people's thoughts and is always able to step back to listen to others"
+      ],
+      motivating: [
+        "behaves in a way which, for some reason, feels more discouraging than encouraging",
+        "is kind of neutral and does not naturally encourage others",
+        "is self-driven and seems to be able to sense when motivation is needed by others",
+        "is enthusiastic, self-driven and encourages others in an authentic way, saying or doing that tiny thing needed at the right time to motivate others"
+      ],
+      helping: [
+        "delivers their work satisfactorily, but does not take responsibility beyond their commitment",
+        "offers help to others in the team but does it only for their personal benefit",
+        "cares for the team's results and offers tangible task related help, or other valuable support",
+        "delivers all work and helps with, supervises or improves what the team needs for its success"
+      ],
+      comm_work_env: [
+        "thinks of his or her own communication needs, and only wants to use the tools that he/she is already used to",
+        "communicates his or her own needs but is not interested in listening to the needs of everyone.",
+        "is actively thinking about how to do the best for the entire team.",
+        "has a sense of how people can easily work together within their daily routines, proposing the best available for the team to agree upon."
+      ],
+      roles: [
+        "thinks of what he or she can contribute in an efficient way without taking the distribution of tasks between team members into account",
+        "signs up for his or her task but is not further interested in improving how roles are assigned or responsibilities shared to enhance team performance.",
+        "is committed to his or her task while listening to recognize team skills and abilities",
+        "is a good judge of character seeing how skills and competencies match to effectively combine and complement team skills and abilities for an efficient outcome"
+      ],
+      setting_goals: [
+        "does not understand how his or her contribution fits within the team goals, sometimes might even deviate because of high individual interest for a topic",
+        "has a basic understanding about how their contribution fits in the Team's set goals, and how the goals are interlinked between all team members' tasks",
+        "brings experience and awareness on how goal setting within the team should be done to stay motivated",
+        "takes a lead in the goal setting process, considering long and short-term milestones while regularly revising goals in team discussions"
+      ],
+      originality: [
+        "is unapproachable and does not share thoughts even when specifically asked",
+        "is neutral and does not seem to have own ideas he or she wants to add",
+        "has thoughts and ideas that bring in new perspectives that allow the team to develop the project",
+        "has a very unique way of seeing things and contributes game changing ideas that everybody immediately agrees upon"
+      ],
+      creative_powers: [
+        "seems to have lost his or her spark, buried it under rules and does not show curiosity for anything",
+        "searches for solutions but not fully understanding the entire picture or task at hand",
+        "is curious but does not always think through what his or her idea means in practice",
+        "is capable of connecting the dots between apparently disjointed ideas, thereby producing solutions to the problems under study"
+      ],
+      positivity: [
+        "gives up easily, becoming an obstacle when new approaches are up for discussion or being tested",
+        "focuses on obstacles rather than on how to overcome them",
+        "is seeing the positive side of things and bounces back from challenges and difficulties",
+        "is always seeing the positive side of things, bounces back immediately and is driven to install a positive atmosphere in the team"
+      ],
+      timeliness: [
+        "causes insecurity due to lack of communication regarding their ability to deliver on their responsibilities",
+        "is often late to deliver on their responsibilities, disrupting the team's agreed schedules",
+        "mostly follows the agreed plan and communicates changes concerning their contributions",
+        "always communicates changes early and delivers his or her contribution within schedule"
+      ],
+      contribution: [
+        "seems to understand the task but does not really contribute anything tangible",
+        "makes an effort but does not deliver quality work or requires constant aid and supervision from others",
+        "understands the task, contributes and factors in changes",
+        "understands the task in its depth, knows what to contribute and always communicates changes with respect to their ability to accomplish the task"
+      ],
+      engagement: [
+        "tries to take the smallest possible assignments and makes excuses on why they cannot complete their share of the work",
+        "shows low commitment and as a result feels frustrated at the smallest hint of a difficulty",
+        "cares for the work he or she does which has an obvious positive effect on the quality of work",
+        "is highly invested in the work he or she contributes and feels the team's failures as their own"
+      ],
+      authenticity: [
+        "feels pressured to behave in a certain way and therefore behaves as others would expect",
+        "feels as if he/she doesn't know him/herself very well and hides the way he/she feels inside",
+        "is true to him/herself most of the time and finds it easier that way",
+        "is genuine, integer and shares what he or she cares for and believes in, without changing their stands through peer pressure."
+      ],
+      respect: [
+        "is only interested in his or her own advantage, interrupting, pushing their opinion and leaving no space for others",
+        "does not know when to stop pushing their point",
+        "asks questions to get to know others and their unique abilities and is willing to listen",
+        "values achievements, abilities and qualities of others and accepts their limitations"
+      ],
+      failure_handling: [
+        "is not aware of things that go wrong, avoids such topics and always seems to be looking for escape routes.",
+        "accepts that failure happens but their work is always perfect, rarely being aware of his or her own contribution to failing",
+        "acknowledges the complexity of failure but at the same time lacks the confidence to speak about it freely",
+        "understands the complexity of failure, how it happens and is confident to openly speak about it"
+      ],
+      cooperate: [
+        "“Group- thinks”, they simply agree - no different opinions may be dangerous",
+        "May have different opinions to what is usually said in the group meeting, but only expresses them in smaller groups after meetings which may undermine other people in the group",
+        "acknowledges their skills and uses them in the benefit of the group, taking on responsibilities for the team regardless of their own workload",
+        "not only acknowledges their skills, he/she is also aware of how to help and accept help in the areas the rest may be lacking whilst accepting his/her own limitations"
+      ],
+      co_create: [
+        "has no engagement in the co-creation process and seems more of an impedance for a successful result",
+        "has low engagement when their ideas are not the ones being carried forward, hampering the creation process",
+        "is highly regarded in the team because he or she is fully invested in the creation process even though he or she may not have the loudest voice",
+        "is proud of the joint result and how they were a part to it, knowing that the output is better than what individuals can achieve"
+      ],
+      take_lead: [
+        "takes the backseat, is not willing to take responsibility for team results",
+        "is driven to complete tasks and takes the team along with him/her in a pragmatic way",
+        "wants to inspire everyone to bring out their best, constantly working towards that aim",
+        "naturally drives the team's achievement, while leaving space for others to take over"
+      ]
+    };
+
+    function escapeSvgText(value) {
+      return value.replace(/[&<>]/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;"
+      })[character]);
+    }
+
+    function getRubricTooltip(sub, level = null) {
+      const descriptions = RUBRIC_DESCRIPTIONS[sub.id];
+      const levels = level
+        ? [level]
+        : descriptions.map((_, index) => index + 1);
+      return escapeSvgText([
+        sub.name,
+        ...levels.map(rating => {
+          const meta = OPACITY_META[rating];
+          const bestCase = rating === 4 ? " (best case scenario)" : "";
+          const subject = sub.id === "transparency" ? "The person communicates" : "The person";
+          return `L${rating} · ${meta.pct}${bestCase}: ${subject} ${descriptions[rating - 1]}`;
+        })
+      ].join("\n"));
+    }
+
+    // Curated case-study wave values so Auto-Play creates a rich, realistic 7-dimension profile
+    const SAMPLE_WAVE_CHOICE = {
+      respect:          { level: 4, facetIdx: 2 },
+      authenticity:     { level: 3, facetIdx: 2 },
+      failure_handling: { level: 4, facetIdx: 2 },
+
+      motivating:       { level: 2, facetIdx: 1 },
+      helping:          { level: 3, facetIdx: 2 },
+      listening:        { level: 2, facetIdx: 1 },
+
+      take_lead:        { level: 3, facetIdx: 2 },
+      co_create:        { level: 4, facetIdx: 2 },
+      cooperate:        { level: 3, facetIdx: 2 },
+
+      setting_goals:    { level: 2, facetIdx: 1 },
+      roles:            { level: 1, facetIdx: 0 },
+      comm_work_env:    { level: 2, facetIdx: 1 },
+
+      positivity:       { level: 4, facetIdx: 2 },
+      creative_powers:  { level: 4, facetIdx: 2 },
+      originality:      { level: 3, facetIdx: 2 },
+
+      learning:         { level: 3, facetIdx: 2 },
+      diversity:        { level: 3, facetIdx: 2 },
+      transparency:     { level: 2, facetIdx: 1 },
+
+      engagement:       { level: 4, facetIdx: 2 },
+      contribution:     { level: 3, facetIdx: 2 },
+      timeliness:       { level: 2, facetIdx: 1 }
+    };
+
+    /*************************************************************************
+     * 2. APPLICATION STATE & MORPH ANIMATION TRACKER
+     *************************************************************************/
+    let state = {
+      viewMode: "INPUT",           // "INPUT" (21 Subcategories) | "FINAL" (Only 7 Dimensions)
+      paletteMode: "7HUES",        // "7HUES" | "MONO"
+      activeSubcatId: "respect",   // Current step target in INPUT mode
+      activeFinalDimId: "attitude",// Selected dimension in FINAL mode
+      levels: {},                  // subcatId -> 1 | 2 | 3 | 4 (undefined/0 if still 3-split)
+      morphs: {},                  // subcatId -> { progress: 0..1, winnerFacet: 0|1|2, targetLevel: 1..4 }
+      isWavePlaying: false
+    };
+
+    let animFrameId = null;
+    let waveTimeouts = [];
+
+    function getDimensionColor(dim) {
+      return state.paletteMode === "7HUES" ? dim.color : "#22d3ee";
+    }
+
+    function findSubcat(subcatId) {
+      for (let i = 0; i < ORDERED_SUBCATS.length; i++) {
+        if (ORDERED_SUBCATS[i].sub.id === subcatId) {
+          return { ...ORDERED_SUBCATS[i], stepIndex: i + 1 };
+        }
+      }
+      return { ...ORDERED_SUBCATS[0], stepIndex: 1 };
+    }
+
+    function getChosenCount() {
+      return ORDERED_SUBCATS.filter(({ sub }) => (state.levels[sub.id] || 0) > 0).length;
+    }
+
+    /**
+     * Computes aggregated result for a Dimension solely from its 3 subcategories.
+     */
+    function getDimensionAggregate(dim) {
+      const subs = dim.subcategories;
+      const chosenSubs = subs.filter(s => (state.levels[s.id] || 0) > 0);
+      const count = chosenSubs.length;
+
+      if (count === 0) {
+        return {
+          chosenCount: 0,
+          avgLevel: 0,
+          avgAlpha: 0.18,
+          pctText: "0%",
+          tierLabel: "PENDING",
+          summary: "No subcategories chosen yet."
+        };
+      }
+
+      const sumLevels = chosenSubs.reduce((acc, s) => acc + (state.levels[s.id] || 0), 0);
+      const avgLevel = sumLevels / count; // 1.0 to 4.0
+      const avgAlpha = avgLevel * 0.25;   // 0.25 to 1.00
+      const pctVal = Math.round(avgAlpha * 100);
+
+      let tierLabel = "EMERGING";
+      if (pctVal >= 85) tierLabel = "CORE STRENGTH";
+      else if (pctVal >= 65) tierLabel = "ESTABLISHED";
+      else if (pctVal >= 45) tierLabel = "DEVELOPING";
+
+      const traitsList = subs.map(s => {
+        const lvl = state.levels[s.id] || 0;
+        return lvl > 0 ? s.traits[lvl] : `${s.shortName.toLowerCase()} (unset)`;
+      });
+
+      return {
+        chosenCount: count,
+        avgLevel,
+        avgAlpha,
+        pctVal,
+        pctText: `${pctVal}%`,
+        tierLabel,
+        summary: `${traitsList[0]} · ${traitsList[1]} · ${traitsList[2]}`
+      };
+    }
+
+    /*************************************************************************
+     * 3. 3D WEAVING & 3-TO-1 MORPH GEOMETRY ENGINE
+     *************************************************************************/
+    function lerp(A, B, t) {
+      return { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
+    }
+    function mid(A, B) {
+      return lerp(A, B, 0.5);
+    }
+    function ptsStr(pts) {
+      return pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    }
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    /**
+     * Given a subcategory corner's 3 outer vertices (V0 = V_apex, V1 = H_L, V2 = H_R):
+     * - In the starting state (progress = 0), all 3 sub-triangles meet at the inner centroid C0.
+     * - When facet `winnerFacet` (0, 1, or 2) is chosen, C(t) animates from C0 -> V_opp!
+     *   - If winnerFacet === 0 (Left facet [V0, V1, C]): V_opp is V2. At t=1, facet 0 becomes [V0, V1, V2]!
+     *   - If winnerFacet === 1 (Right facet [V0, C, V2]): V_opp is V1. At t=1, facet 1 becomes [V0, V1, V2]!
+     *   - If winnerFacet === 2 (Base facet [V1, V2, C]):  V_opp is V0. At t=1, facet 2 becomes [V1, V2, V0]!
+     * Thus the chosen sub-triangle physically expands to replace the other 2 sub-triangles!
+     */
+    function computeMorphingSubTriangles(V0, V1, V2, morphState) {
+      const baseMid = mid(V1, V2);
+      const C0 = lerp(V0, baseMid, 0.58);
+
+      const oppVertices = [V2, V1, V0];
+      const tRaw = morphState ? morphState.progress : 0;
+      const t = easeOutCubic(Math.max(0, Math.min(1, tRaw)));
+      const winnerIdx = morphState ? morphState.winnerFacet : 2;
+      const V_opp = oppVertices[winnerIdx];
+
+      // Moving apex C(t)
+      const C = lerp(C0, V_opp, t);
+
+      // Center of full outer triangle (used for merged state label/badge)
+      const fullCentroid = {
+        x: (V0.x + V1.x + V2.x) / 3,
+        y: (V0.y + V1.y + V2.y) / 3
+      };
+      const startLabelPos = {
+        x: (V1.x + V2.x + C0.x) / 3,
+        y: (V1.y + V2.y + C0.y) / 3
+      };
+
+      return {
+        C0,
+        C,
+        t,
+        isMerged: t >= 0.995,
+        winnerIdx,
+        labelPos: lerp(startLabelPos, fullCentroid, t),
+        facets: [
+          { facetIdx: 0, defaultLevel: 1, points: [V0, V1, C], startAlpha: 0.25 },
+          { facetIdx: 1, defaultLevel: 2, points: [V0, C, V2], startAlpha: 0.50 },
+          { facetIdx: 2, defaultLevel: 3, points: [V1, V2, C], startAlpha: 0.75 }
+        ]
+      };
+    }
+
+    function renderWovenStrut(P1, P2, color, isOver = true, weightScale = 1) {
+      return `
+        <g pointer-events="none">
+          <line x1="${P1.x.toFixed(1)}" y1="${P1.y.toFixed(1)}"
+                x2="${P2.x.toFixed(1)}" y2="${P2.y.toFixed(1)}"
+                stroke="#020408" stroke-width="${(5.4 * weightScale).toFixed(1)}" stroke-linecap="round" opacity="0.8" />
+          <line x1="${P1.x.toFixed(1)}" y1="${P1.y.toFixed(1)}"
+                x2="${P2.x.toFixed(1)}" y2="${P2.y.toFixed(1)}"
+                stroke="#1e293b" stroke-width="${(3.1 * weightScale).toFixed(1)}" stroke-linecap="round" />
+          <line x1="${P1.x.toFixed(1)}" y1="${P1.y.toFixed(1)}"
+                x2="${P2.x.toFixed(1)}" y2="${P2.y.toFixed(1)}"
+                stroke="${color}" stroke-width="${(1.4 * weightScale).toFixed(1)}" stroke-linecap="round"
+                stroke-opacity="${isOver ? '0.9' : '0.45'}" />
+        </g>
+      `;
+    }
+
+    /*************************************************************************
+     * 4. RENDER SVG: SUPPORTS BOTH "INPUT (21 SUBS)" & "FINAL (ONLY 7 DIMS)"
+     *************************************************************************/
+    function renderWovenSvg() {
+      const svg = document.getElementById("wovenSvg");
+      const W = 300;
+      const H = 262;
+      const DX = 180;
+      const startX = 165;
+
+      let html = `
+        <defs>
+          <pattern id="carbonWeave" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" stroke-width="0.65" stroke-opacity="0.08" />
+            <line x1="0" y1="0" x2="6" y2="0" stroke="#000000" stroke-width="0.85" stroke-opacity="0.26" />
+          </pattern>
+
+          <pattern id="macroWeave" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+            <line x1="0" y1="0" x2="0" y2="10" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.11" />
+            <line x1="0" y1="0" x2="10" y2="0" stroke="#000000" stroke-width="1.1" stroke-opacity="0.28" />
+          </pattern>
+
+          <radialGradient id="centerCoreGrad" cx="50%" cy="50%" r="65%">
+            <stop offset="0%" stop-color="#0f172a" stop-opacity="0.95" />
+            <stop offset="100%" stop-color="#050811" stop-opacity="0.99" />
+          </radialGradient>
+
+          <filter id="facetGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="#ffffff" flood-opacity="0.4" />
+          </filter>
+        </defs>
+      `;
+
+      const triGeoms = DIMENSIONS.map((dim, idx) => {
+        const xc = startX + idx * DX;
+        const isUp = dim.orientation === "UP";
+        const yTop = isUp ? 26 : 16;
+        const yBot = yTop + H;
+        return { dim, idx, xc, isUp, yTop, yBot };
+      });
+
+      // Background Interlocking Woven Truss Bridges
+      html += `<g class="truss-bridges" pointer-events="none">`;
+      for (let i = 0; i < triGeoms.length - 1; i++) {
+        const curr = triGeoms[i];
+        const next = triGeoms[i + 1];
+        const c1 = getDimensionColor(curr.dim);
+        const c2 = getDimensionColor(next.dim);
+        if (curr.isUp) {
+          const pA = { x: curr.xc, y: curr.yTop };
+          const pB = { x: next.xc - W / 2, y: next.yTop };
+          const pC = { x: curr.xc + W / 2, y: curr.yBot };
+          const pD = { x: next.xc, y: next.yBot };
+          html += `<line x1="${pA.x}" y1="${pA.y}" x2="${pB.x}" y2="${pB.y}" stroke="${c1}" stroke-opacity="0.26" stroke-width="1.3" stroke-dasharray="3 3" />`;
+          html += `<line x1="${pC.x}" y1="${pC.y}" x2="${pD.x}" y2="${pD.y}" stroke="${c2}" stroke-opacity="0.26" stroke-width="1.3" stroke-dasharray="3 3" />`;
+        } else {
+          const pA = { x: curr.xc + W / 2, y: curr.yTop };
+          const pB = { x: next.xc, y: next.yTop };
+          const pC = { x: curr.xc, y: curr.yBot };
+          const pD = { x: next.xc - W / 2, y: next.yBot };
+          html += `<line x1="${pA.x}" y1="${pA.y}" x2="${pB.x}" y2="${pB.y}" stroke="${c1}" stroke-opacity="0.26" stroke-width="1.3" stroke-dasharray="3 3" />`;
+          html += `<line x1="${pC.x}" y1="${pC.y}" x2="${pD.x}" y2="${pD.y}" stroke="${c2}" stroke-opacity="0.26" stroke-width="1.3" stroke-dasharray="3 3" />`;
+        }
+      }
+      html += `</g>`;
+
+      // =====================================================================
+      // MODE B: FINAL 7-DIMENSION PICTURE (ONLY THE 7 MACRO DIMENSIONS SHOWN)
+      // =====================================================================
+      if (state.viewMode === "FINAL") {
+        triGeoms.forEach(({ dim, xc, isUp, yTop, yBot }) => {
+          const dimColor = getDimensionColor(dim);
+          const agg = getDimensionAggregate(dim);
+          const isSelected = state.activeFinalDimId === dim.id;
+
+          let V0, V1, V2;
+          if (isUp) {
+            V0 = { x: xc, y: yTop };
+            V1 = { x: xc - W / 2, y: yBot };
+            V2 = { x: xc + W / 2, y: yBot };
+          } else {
+            V0 = { x: xc, y: yBot };
+            V1 = { x: xc - W / 2, y: yTop };
+            V2 = { x: xc + W / 2, y: yTop };
+          }
+
+          const outerPts = [V0, V1, V2];
+          const centroid = {
+            x: (V0.x + V1.x + V2.x) / 3,
+            y: (V0.y + V1.y + V2.y) / 3
+          };
+
+          // Subtle internal 3D tetrahedral crease lines to give the unified macro dimension 3D woven depth
+          const m01 = mid(V0, V1);
+          const m12 = mid(V1, V2);
+          const m20 = mid(V2, V0);
+
+          html += `<g class="final-dim-node" onclick="selectFinalDimension('${dim.id}')">`;
+
+          // Deep obsidian backing
+          html += `<polygon points="${ptsStr(outerPts)}" fill="#050811" />`;
+
+          // Unified Macro Dimension Triangle filled with its resulting aggregated opacity!
+          html += `
+            <polygon class="macro-dim-poly"
+                     points="${ptsStr(outerPts)}"
+                     fill="${dimColor}"
+                     fill-opacity="${agg.avgAlpha.toFixed(2)}"
+                     stroke="${isSelected ? '#ffffff' : dimColor}"
+                     stroke-width="${isSelected ? '2.4' : '1.4'}" />
+          `;
+
+          // 3D Woven Macro Carbon Overlay
+          html += `
+            <polygon points="${ptsStr(outerPts)}"
+                     fill="url(#macroWeave)"
+                     pointer-events="none" />
+          `;
+
+          // Subtle 3D tetrahedral light-catching ribs converging at centroid
+          html += `
+            <g stroke="#ffffff" stroke-opacity="${(0.16 + agg.avgAlpha * 0.25).toFixed(2)}" stroke-width="1.1" pointer-events="none">
+              <line x1="${V0.x}" y1="${V0.y}" x2="${centroid.x.toFixed(1)}" y2="${centroid.y.toFixed(1)}" />
+              <line x1="${V1.x}" y1="${V1.y}" x2="${centroid.x.toFixed(1)}" y2="${centroid.y.toFixed(1)}" />
+              <line x1="${V2.x}" y1="${V2.y}" x2="${centroid.x.toFixed(1)}" y2="${centroid.y.toFixed(1)}" />
+              <line x1="${m01.x}" y1="${m01.y}" x2="${m20.x}" y2="${m20.y}" stroke-opacity="0.12" />
+              <line x1="${m01.x}" y1="${m01.y}" x2="${m12.x}" y2="${m12.y}" stroke-opacity="0.12" />
+              <line x1="${m20.x}" y1="${m20.y}" x2="${m12.x}" y2="${m12.y}" stroke-opacity="0.12" />
+            </g>
+          `;
+
+          // Outer 3D Woven Struts
+          html += renderWovenStrut(V0, V1, dimColor, true, 1.15);
+          html += renderWovenStrut(V1, V2, dimColor, false, 1.15);
+          html += renderWovenStrut(V2, V0, dimColor, true, 1.15);
+
+          // Central Result Plate (Shows ONLY the Dimension Name, Resulting Opacity %, and Tier)
+          const labelOffset = dim.id === "efficiency" ? 8 : dim.id === "performance" ? -8 : 0;
+          const labelY = (isUp ? centroid.y + 8 : centroid.y - 12) + labelOffset;
+          html += `
+            <g pointer-events="none" transform="translate(${centroid.x.toFixed(1)}, ${labelY.toFixed(1)})">
+              <!-- Dark Glass Score Pill -->
+              <rect x="-68" y="-34" width="136" height="64" rx="10"
+                    fill="#050811" fill-opacity="0.82"
+                    stroke="${isSelected ? '#ffffff' : dimColor}"
+                    stroke-width="${isSelected ? '1.8' : '1.2'}" />
+
+              <!-- Dimension Title -->
+              <text x="0" y="-14" text-anchor="middle"
+                    fill="#ffffff" font-family="Space Grotesk, Inter, sans-serif"
+                    font-weight="700" font-size="13.5" letter-spacing="0.06em">
+                ${dim.name}
+              </text>
+
+              <!-- Aggregated Opacity Result Percentage -->
+              <text x="0" y="8" text-anchor="middle"
+                    fill="${dimColor}" font-family="Space Grotesk, Inter, sans-serif"
+                    font-weight="700" font-size="18">
+                ${agg.pctText}
+              </text>
+
+              <!-- Tier Tag -->
+              <text x="0" y="22" text-anchor="middle"
+                    fill="#cbd5e1" font-family="Inter, sans-serif"
+                    font-weight="700" font-size="7.5" letter-spacing="0.1em">
+                ${agg.tierLabel}
+              </text>
+            </g>
+          `;
+
+          html += `</g>`;
+        });
+
+        svg.innerHTML = html;
+        return;
+      }
+
+      // =====================================================================
+      // MODE A: 21-STEP FEEDBACK MODE (3 SUB-TRIANGLES MORPH INTO 1 TRIANGLE)
+      // =====================================================================
+      triGeoms.forEach(({ dim, xc, isUp, yTop, yBot }) => {
+        const dimColor = getDimensionColor(dim);
+        const agg = getDimensionAggregate(dim);
+
+        let outerPts, centerPts, centerLabelPos, corners, struts;
+
+        if (isUp) {
+          const T  = { x: xc, y: yTop };
+          const BL = { x: xc - W / 2, y: yBot };
+          const BR = { x: xc + W / 2, y: yBot };
+          const L1 = mid(T, BL);
+          const R1 = mid(T, BR);
+          const MB = mid(BL, BR);
+
+          outerPts = [T, BL, BR];
+          centerPts = [L1, R1, MB];
+          centerLabelPos = { x: xc, y: L1.y + (MB.y - L1.y) * 0.38 };
+
+          corners = {
+            TOP: { V0: T,  V1: L1, V2: R1 },
+            BL:  { V0: L1, V1: BL, V2: MB },
+            BR:  { V0: R1, V1: MB, V2: BR }
+          };
+
+          struts = [
+            [T, BL, true], [BL, BR, false], [BR, T, true],
+            [L1, R1, true], [R1, MB, false], [MB, L1, true]
+          ];
+        } else {
+          const TL = { x: xc - W / 2, y: yTop };
+          const TR = { x: xc + W / 2, y: yTop };
+          const B  = { x: xc, y: yBot };
+          const MT = mid(TL, TR);
+          const L2 = mid(TL, B);
+          const R2 = mid(TR, B);
+
+          outerPts = [TL, TR, B];
+          centerPts = [MT, L2, R2];
+          centerLabelPos = { x: xc, y: L2.y - (L2.y - MT.y) * 0.42 };
+
+          corners = {
+            TL:     { V0: L2, V1: TL, V2: MT },
+            TR:     { V0: R2, V1: MT, V2: TR },
+            BOTTOM: { V0: B,  V1: L2, V2: R2 }
+          };
+
+          struts = [
+            [TL, TR, true], [TR, B, false], [B, TL, true],
+            [MT, R2, true], [R2, L2, false], [L2, MT, true]
+          ];
+        }
+
+        centerLabelPos.y += dim.id === "efficiency" ? 8 : dim.id === "performance" ? -8 : 0;
+        html += `<g class="dimension-node" data-dim="${dim.id}">`;
+
+        // 1. Render the 3 Corner Subcategories (with 3->1 Morphing Geometry!)
+        dim.subcategories.forEach(sub => {
+          const c = corners[sub.pos];
+          const chosenLevel = state.levels[sub.id] || 0;
+          const morphState = state.morphs[sub.id] || (chosenLevel > 0
+            ? { progress: 1, winnerFacet: Math.min(2, chosenLevel - 1), targetLevel: chosenLevel }
+            : null);
+
+          const m = computeMorphingSubTriangles(c.V0, c.V1, c.V2, morphState);
+          const isActiveStep = state.activeSubcatId === sub.id;
+
+          html += `<g class="subcat-node" data-subcat="${sub.id}">`;
+
+          // Deep dark backing triangle
+          html += `
+            <polygon points="${ptsStr([c.V0, c.V1, c.V2])}"
+                     fill="#060911" stroke="none" />
+          `;
+
+          if (m.isMerged && chosenLevel > 0) {
+            // ---------------------------------------------------------------
+            // MERGED STATE: 1 UNIFIED TRIANGLE REPLACED THE OTHER 2!
+            // ---------------------------------------------------------------
+            const targetAlpha = OPACITY_META[chosenLevel].alpha;
+            html += `
+              <polygon class="woven-facet"
+                       points="${ptsStr([c.V0, c.V1, c.V2])}"
+                       fill="${dimColor}"
+                       fill-opacity="${targetAlpha.toFixed(2)}"
+                       stroke="#ffffff"
+                       stroke-opacity="0.75"
+                       stroke-width="1.2"
+                       stroke-linejoin="round"
+                       onclick="handleMergedTriangleClick(event, '${sub.id}')">
+                  <title>${getRubricTooltip(sub)}</title>
+                </polygon>
+            `;
+          } else {
+            // ---------------------------------------------------------------
+            // 3 SUB-TRIANGLES (OR ACTIVELY ANIMATING 3 -> 1 MORPH!)
+            // ---------------------------------------------------------------
+            m.facets.forEach(f => {
+              let alpha = f.startAlpha;
+              if (morphState) {
+                const targetAlpha = OPACITY_META[morphState.targetLevel].alpha;
+                if (f.facetIdx === m.winnerIdx) {
+                  // Winning triangle smoothly interpolates its opacity to the chosen level as it expands to fill the corner
+                  alpha = f.startAlpha + (targetAlpha - f.startAlpha) * m.t;
+                } else {
+                  // The other 2 sub-triangles fade & collapse out as the winning triangle replaces them
+                  alpha = f.startAlpha * (1 - m.t * 0.85);
+                }
+              }
+
+              html += `
+                <polygon class="woven-facet"
+                         points="${ptsStr(f.points)}"
+                         fill="${dimColor}"
+                         fill-opacity="${alpha.toFixed(2)}"
+                         stroke="${dimColor}"
+                         stroke-opacity="${(0.5 * (1 - m.t * 0.4)).toFixed(2)}"
+                         stroke-width="0.9"
+                         stroke-linejoin="round"
+                         onclick="handleSubTriangleClick(event, '${sub.id}', ${f.facetIdx}, ${f.defaultLevel})">
+                  <title>${getRubricTooltip(sub, f.defaultLevel)}</title>
+                </polygon>
+              `;
+            });
+          }
+
+          // Subtle 3D woven carbon micro-pattern across the subcategory triangle
+          html += `
+            <polygon points="${ptsStr([c.V0, c.V1, c.V2])}"
+                     fill="url(#carbonWeave)"
+                     pointer-events="none" />
+          `;
+
+          // Inner Ridge Crease Lines (dissolve into the outer frame as m.t -> 1)
+          if (!m.isMerged) {
+            const ridgeOpacity = (0.48 * (1 - m.t)).toFixed(2);
+            html += `
+              <g stroke="#ffffff" stroke-opacity="${ridgeOpacity}" stroke-width="0.95" stroke-linecap="round" pointer-events="none">
+                <line x1="${m.C.x.toFixed(1)}" y1="${m.C.y.toFixed(1)}" x2="${c.V0.x.toFixed(1)}" y2="${c.V0.y.toFixed(1)}" />
+                <line x1="${m.C.x.toFixed(1)}" y1="${m.C.y.toFixed(1)}" x2="${c.V1.x.toFixed(1)}" y2="${c.V1.y.toFixed(1)}" />
+                <line x1="${m.C.x.toFixed(1)}" y1="${m.C.y.toFixed(1)}" x2="${c.V2.x.toFixed(1)}" y2="${c.V2.y.toFixed(1)}" />
+              </g>
+            `;
+
+            // 100% apex choice: a stable, slightly larger hit area avoids hover jitter,
+            // while the visible jewel remains pointer-inert so it cannot steal events.
+            html += `
+              <g class="apex-control">
+                <circle cx="${m.C.x.toFixed(1)}" cy="${m.C.y.toFixed(1)}" r="8"
+                        class="apex-hit-target"
+                        role="button" tabindex="0"
+                        aria-label="${escapeSvgText(sub.name)} — 100% choice"
+                        onclick="handleSubTriangleClick(event, '${sub.id}', 2, 4)"
+                        onkeydown="if(event.key === 'Enter' || event.key === ' '){event.preventDefault();handleSubTriangleClick(event, '${sub.id}', 2, 4)}">
+                  <title>${getRubricTooltip(sub, 4)}</title>
+                </circle>
+                <circle cx="${m.C.x.toFixed(1)}" cy="${m.C.y.toFixed(1)}" r="3.4"
+                        fill="#ffffff" fill-opacity="${(0.95 * (1 - m.t)).toFixed(2)}"
+                        stroke="${dimColor}" stroke-width="1.2"
+                        class="apex-dot" pointer-events="none" />
+              </g>
+            `;
+          }
+
+          // Pulsing Target Beacon on the Active Step Subcategory
+          if (isActiveStep) {
+            html += `
+              <polygon class="active-target-ring"
+                       points="${ptsStr([c.V0, c.V1, c.V2])}"
+                       fill="none"
+                       stroke="#ffffff"
+                       stroke-width="2.0"
+                       filter="url(#facetGlow)"
+                       pointer-events="none" />
+            `;
+          }
+
+          // Subcategory Title Label
+          const yNudge = m.isMerged ? (isUp ? 8 : -4) : (isUp ? 3.5 : -1.0);
+          const fontSize = sub.shortName.length > 14 ? "6.5" : "7.3";
+          html += `
+            <text x="${m.labelPos.x.toFixed(1)}"
+                  y="${(m.labelPos.y + yNudge).toFixed(1)}"
+                  text-anchor="middle"
+                  fill="#f8fafc"
+                  font-family="Inter, sans-serif"
+                  font-weight="700"
+                  font-size="${fontSize}"
+                  letter-spacing="0.03em"
+                  paint-order="stroke"
+                  stroke="#05070c"
+                  stroke-width="2.8px"
+                  stroke-linejoin="round"
+                  pointer-events="none">
+              ${sub.shortName}
+            </text>
+          `;
+
+          // Merged Unified Triangle Opacity Pill (shown once 3->1 merge completes)
+          if (chosenLevel > 0) {
+            const pct = OPACITY_META[chosenLevel].pct;
+            const badgeY = m.labelPos.y + (isUp ? -6 : 9);
+            html += `
+              <g pointer-events="none" transform="translate(${m.labelPos.x.toFixed(1)}, ${badgeY.toFixed(1)})">
+                <rect x="-14" y="-6" width="28" height="11.5" rx="3.5"
+                      fill="#050811" fill-opacity="0.9" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.9" />
+                <text x="0" y="2.6" text-anchor="middle" fill="${dimColor}"
+                      font-size="7.2" font-weight="800" font-family="Inter, sans-serif">
+                  ${pct}
+                </text>
+              </g>
+            `;
+          }
+
+          html += `</g>`;
+        });
+
+        // 2. Central Dimension Core Triangle (Live preview of the Dimension's aggregated opacity)
+        const coreFillAlpha = agg.chosenCount > 0 ? (0.14 + agg.avgAlpha * 0.45) : 0.08;
+        html += `
+          <polygon points="${ptsStr(centerPts)}"
+                   fill="url(#centerCoreGrad)"
+                   stroke="${dimColor}"
+                   stroke-width="1.2"
+                   stroke-opacity="0.65" />
+          <polygon points="${ptsStr(centerPts)}"
+                   fill="${dimColor}"
+                   fill-opacity="${coreFillAlpha.toFixed(2)}"
+                   class="core-dim-poly"
+                   onclick="selectSubcat('${dim.subcategories[0].id}')" />
+          <polygon points="${ptsStr(centerPts)}"
+                   fill="url(#carbonWeave)"
+                   pointer-events="none" />
+          <text x="${centerLabelPos.x.toFixed(1)}"
+                y="${centerLabelPos.y.toFixed(1)}"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="Space Grotesk, Inter, sans-serif"
+                font-weight="700"
+                font-size="13"
+                letter-spacing="0.06em"
+                paint-order="stroke"
+                stroke="#020408"
+                stroke-width="3px"
+                pointer-events="none">
+            ${dim.name}
+          </text>
+          <text x="${centerLabelPos.x.toFixed(1)}"
+                y="${(centerLabelPos.y + 13).toFixed(1)}"
+                text-anchor="middle"
+                fill="${agg.chosenCount > 0 ? dimColor : '#64748b'}"
+                font-family="Inter, sans-serif"
+                font-weight="700"
+                font-size="8.2"
+                letter-spacing="0.05em"
+                paint-order="stroke"
+                stroke="#020408"
+                stroke-width="2.4px"
+                pointer-events="none">
+            ${agg.chosenCount > 0 ? `${agg.pctText} (${agg.chosenCount}/3)` : '0/3 CHOSEN'}
+          </text>
+        `;
+
+        // 3. Render 3D Over-Under Woven Structural Struts
+        struts.forEach(([P1, P2, isOver]) => {
+          html += renderWovenStrut(P1, P2, dimColor, isOver);
+        });
+
+        const uniqueVerts = [...outerPts, ...centerPts];
+        uniqueVerts.forEach(v => {
+          html += `
+            <circle cx="${v.x.toFixed(1)}" cy="${v.y.toFixed(1)}" r="2.2"
+                    fill="#0f172a" stroke="${dimColor}" stroke-width="1.2" pointer-events="none" />
+          `;
+        });
+
+        html += `</g>`;
+      });
+
+      svg.innerHTML = html;
+    }
+
+    /*************************************************************************
+     * 5. 3-TO-1 TRIANGLE MORPH ANIMATION & STEP ADVANCEMENT
+     *************************************************************************/
+    function animateSubcatMorph(subcatId, winnerFacetIdx, targetLevel, onComplete) {
+      state.levels[subcatId] = targetLevel;
+      const startTime = performance.now();
+      const duration = 330; // ms smooth 3->1 geometric expansion
+
+      state.morphs[subcatId] = {
+        progress: 0,
+        winnerFacet: winnerFacetIdx,
+        targetLevel
+      };
+
+      function tick(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / duration);
+        if (state.morphs[subcatId]) {
+          state.morphs[subcatId].progress = p;
+        }
+        renderWovenSvg();
+
+        if (p < 1) {
+          animFrameId = requestAnimationFrame(tick);
+        } else {
+          if (onComplete) onComplete();
+        }
+      }
+
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      animFrameId = requestAnimationFrame(tick);
+    }
+
+    /**
+     * Advances `state.activeSubcatId` to the next unchosen subcategory in the 1..21 sequence.
+     * If all 21 have been chosen, automatically transitions to the 7-Dimension Final Picture!
+     */
+    function advanceToNextUnchosenSubcat(justChosenId) {
+      const currentIdx = ORDERED_SUBCATS.findIndex(item => item.sub.id === justChosenId);
+
+      // Search forward from currentIdx + 1, wrapping around
+      for (let offset = 1; offset <= ORDERED_SUBCATS.length; offset++) {
+        const idx = (currentIdx + offset) % ORDERED_SUBCATS.length;
+        const candidateId = ORDERED_SUBCATS[idx].sub.id;
+        if (!state.levels[candidateId]) {
+          state.activeSubcatId = candidateId;
+          renderAll();
+          return;
+        }
+      }
+
+      // All 21 subcategories have been chosen!
+      renderAll();
+      setTimeout(() => {
+        if (getChosenCount() === 21) {
+          switchViewMode("FINAL");
+        }
+      }, 360);
+    }
+
+    // Clicked one of the 3 sub-triangles (or center apex) inside an unmerged subcategory
+    window.handleSubTriangleClick = function(event, subcatId, facetIdx, level) {
+      event.stopPropagation();
+      stopAutoPlayWave();
+      state.activeSubcatId = subcatId;
+
+      animateSubcatMorph(subcatId, facetIdx, level, () => {
+        advanceToNextUnchosenSubcat(subcatId);
+      });
+      renderHeaderAndStatus();
+      renderHudBar();
+      renderDimensionGrid();
+    };
+
+    // Clicked an already-merged single triangle: cycles 25% -> 50% -> 75% -> 100% -> or re-splits on Shift-click
+    window.handleMergedTriangleClick = function(event, subcatId) {
+      event.stopPropagation();
+      stopAutoPlayWave();
+
+      if (state.activeSubcatId !== subcatId) {
+        // First click selects it so user can inspect or re-split
+        state.activeSubcatId = subcatId;
+        renderAll();
+        return;
+      }
+
+      // Clicking again cycles opacity level 1 -> 2 -> 3 -> 4 -> 0 (Re-open 3 sub-triangles)
+      const curr = state.levels[subcatId] || 0;
+      const next = curr < 4 ? curr + 1 : 0;
+      if (next === 0) {
+        delete state.levels[subcatId];
+        delete state.morphs[subcatId];
+        renderAll();
+      } else {
+        const facetIdx = Math.min(2, next - 1);
+        animateSubcatMorph(subcatId, facetIdx, next);
+        renderAll();
+      }
+    };
+
+    // Trigger choice from the HUD bar or bottom mini-bars
+    window.chooseSubcatLevel = function(subcatId, level) {
+      stopAutoPlayWave();
+      state.activeSubcatId = subcatId;
+
+      if (level === 0) {
+        delete state.levels[subcatId];
+        delete state.morphs[subcatId];
+        renderAll();
+        return;
+      }
+
+      const facetIdx = Math.min(2, level - 1);
+      animateSubcatMorph(subcatId, facetIdx, level, () => {
+        advanceToNextUnchosenSubcat(subcatId);
+      });
+      renderHeaderAndStatus();
+      renderHudBar();
+      renderDimensionGrid();
+    };
+
+    window.selectSubcat = function(subcatId) {
+      stopAutoPlayWave();
+      state.activeSubcatId = subcatId;
+      if (state.viewMode !== "INPUT") {
+        state.viewMode = "INPUT";
+      }
+      renderAll();
+    };
+
+    window.selectFinalDimension = function(dimId) {
+      state.activeFinalDimId = dimId;
+      const dim = DIMENSIONS.find(d => d.id === dimId);
+      if (dim) state.activeSubcatId = dim.subcategories[0].id;
+      renderAll();
+    };
+
+    window.switchViewMode = function(mode) {
+      stopAutoPlayWave();
+      state.viewMode = mode;
+      renderAll();
+    };
+
+    /*************************************************************************
+     * 6. AUTO-PLAY 21 WAVE DEMO (CASCADING 3->1 MORPH THEN FINAL 7 PICTURE)
+     *************************************************************************/
+    function stopAutoPlayWave() {
+      waveTimeouts.forEach(t => clearTimeout(t));
+      waveTimeouts = [];
+      state.isWavePlaying = false;
+      const btn = document.getElementById("autoWaveBtn");
+      if (btn) btn.innerHTML = `<span>⚡ Auto-Play 21 Wave</span>`;
+    }
+
+    window.triggerAutoPlayWave = function() {
+      if (state.isWavePlaying) {
+        stopAutoPlayWave();
+        return;
+      }
+
+      // Switch to INPUT mode so user watches all 21 subcategories morph 3->1
+      state.viewMode = "INPUT";
+      state.isWavePlaying = true;
+      const btn = document.getElementById("autoWaveBtn");
+      if (btn) btn.innerHTML = `<span>⏹ Stop Wave</span>`;
+
+      // If already 21/21, reset first so the full 21-step wave is visible
+      if (getChosenCount() === 21) {
+        state.levels = {};
+        state.morphs = {};
+      }
+
+      const unchosenList = ORDERED_SUBCATS.filter(({ sub }) => !state.levels[sub.id]);
+      const stepDelay = 115; // crisp cascading wave
+
+      unchosenList.forEach(({ sub }, i) => {
+        const tid = setTimeout(() => {
+          const preset = SAMPLE_WAVE_CHOICE[sub.id] || { level: 3, facetIdx: 2 };
+          state.activeSubcatId = sub.id;
+          animateSubcatMorph(sub.id, preset.facetIdx, preset.level);
+          renderHeaderAndStatus();
+          renderHudBar();
+          renderDimensionGrid();
+
+          // On the 21st choice, pause briefly then unveil the 7-Dimension Final Picture
+          if (i === unchosenList.length - 1) {
+            const finalTid = setTimeout(() => {
+              state.isWavePlaying = false;
+              if (btn) btn.innerHTML = `<span>⚡ Auto-Play 21 Wave</span>`;
+              switchViewMode("FINAL");
+            }, 620);
+            waveTimeouts.push(finalTid);
+          }
+        }, i * stepDelay);
+        waveTimeouts.push(tid);
+      });
+    };
+
+    /*************************************************************************
+     * 7. RENDER HEADER, HUD BAR & 7-DIMENSION RESULTS GRID
+     *************************************************************************/
+    function renderHeaderAndStatus() {
+      const chosenCount = getChosenCount();
+      const pct = Math.round((chosenCount / 21) * 100);
+
+      document.getElementById("progressCountText").textContent = `${chosenCount} / 21 Chosen`;
+      document.getElementById("progressBarFill").style.width = `${pct}%`;
+
+      const inBtn = document.getElementById("modeInputBtn");
+      const fnBtn = document.getElementById("modeFinalBtn");
+
+      if (state.viewMode === "INPUT") {
+        inBtn.className = "px-2.5 py-1 rounded-md text-[11px] font-bold bg-cyan-500 text-slate-950 shadow transition flex items-center gap-1.5";
+        fnBtn.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5";
+      } else {
+        inBtn.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5";
+        fnBtn.className = "px-2.5 py-1 rounded-md text-[11px] font-bold bg-indigo-500 text-white shadow transition flex items-center gap-1.5";
+      }
+    }
+
+    function renderHudBar() {
+      const hud = document.getElementById("hudBar");
+
+      if (state.viewMode === "FINAL") {
+        // Overall 7-Dimension Feedback Picture Synthesis
+        const dimStats = DIMENSIONS.map(d => ({ dim: d, agg: getDimensionAggregate(d) }));
+        const validDims = dimStats.filter(d => d.agg.chosenCount > 0);
+        const sorted = [...validDims].sort((a, b) => b.agg.avgAlpha - a.agg.avgAlpha);
+
+        const strongest = sorted.slice(0, 2).map(x => `${x.dim.name} (${x.agg.pctText})`).join(" & ") || "None yet";
+        const growth = sorted.length > 1 ? sorted.slice(-2).reverse().map(x => `${x.dim.name} (${x.agg.pctText})`).join(" & ") : "None yet";
+
+        const selDim = DIMENSIONS.find(d => d.id === state.activeFinalDimId) || DIMENSIONS[0];
+        const selAgg = getDimensionAggregate(selDim);
+        const selColor = getDimensionColor(selDim);
+
+        hud.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <span class="px-2.5 py-1 rounded-md text-[10px] font-display font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 shrink-0">
+              OVERALL 7-DIMENSION PICTURE
+            </span>
+            <div class="text-xs text-slate-200 truncate">
+              <span class="text-slate-400">Peak Pillars:</span> <strong class="text-emerald-300">${strongest}</strong>
+              <span class="mx-2 text-slate-600">&bull;</span>
+              <span class="text-slate-400">Growth Focus:</span> <strong class="text-amber-300">${growth}</strong>
+              <span class="mx-2 text-slate-600 hidden xl:inline">&bull;</span>
+              <span class="hidden xl:inline text-slate-300">
+                Inspecting <strong style="color:${selColor}">${selDim.name} (${selAgg.pctText})</strong>: ${selAgg.summary}
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="switchViewMode('INPUT')"
+                    class="px-3 py-1 rounded-md text-[11px] font-semibold bg-[#172033] hover:bg-[#1f2b44] text-cyan-300 border border-cyan-500/30 transition">
+              ← Edit 21 Subcategory Choices
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      // INPUT MODE HUD: Step X of 21 + 4 Opacity Buttons that trigger the 3->1 Morph
+      const { dim, sub, stepIndex } = findSubcat(state.activeSubcatId);
+      const dimColor = getDimensionColor(dim);
+      const currentLvl = state.levels[sub.id] || 0;
+
+      const levelButtonsHtml = [1, 2, 3, 4].map(lvl => {
+        const isSel = currentLvl === lvl;
+        const meta = OPACITY_META[lvl];
+        return `
+          <button onclick="chooseSubcatLevel('${sub.id}', ${lvl})"
+                  class="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition flex items-center gap-1.5"
+                  style="background-color: ${isSel ? dimColor : '#151c2c'};
+                         border-color: ${isSel ? '#ffffff' : '#26324a'};
+                         color: ${isSel ? '#05070c' : '#e2e8f0'};">
+            <span class="w-2.5 h-2.5 rounded-xs border border-white/40"
+                  style="background:${isSel ? '#05070c' : dimColor}; opacity:${meta.alpha}"></span>
+            <span>L${lvl} &middot; ${meta.pct} ${meta.tag}</span>
+          </button>
+        `;
+      }).join("");
+
+      hud.innerHTML = `
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+          <span class="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[10px] font-bold shrink-0 border border-slate-700">
+            STEP ${stepIndex}/21
+          </span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider shrink-0 border"
+                style="background:${dimColor}22; border-color:${dimColor}66; color:${dimColor}">
+            ${dim.name}
+          </span>
+          <span class="font-display font-bold text-sm text-white shrink-0 tracking-tight">
+            ${sub.name}
+          </span>
+          <span class="text-slate-600 hidden md:inline">&mdash;</span>
+          <p class="text-xs text-slate-300 truncate hidden md:block">
+            ${sub.desc}
+          </p>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          ${currentLvl > 0 ? `
+            <button onclick="chooseSubcatLevel('${sub.id}', 0)"
+                    title="Re-split this subcategory back into 3 sub-triangles"
+                    class="px-2 py-1 rounded-md text-[11px] font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600 transition">
+              Re-Split (3)
+            </button>
+          ` : ''}
+          ${levelButtonsHtml}
+        </div>
+      `;
+    }
+
+    function renderDimensionGrid() {
+      const grid = document.getElementById("dimensionGrid");
+      const { dim: activeInputDim } = findSubcat(state.activeSubcatId);
+
+      grid.innerHTML = DIMENSIONS.map(dim => {
+        const dimColor = getDimensionColor(dim);
+        const agg = getDimensionAggregate(dim);
+        const isCardFocused = state.viewMode === "FINAL"
+          ? state.activeFinalDimId === dim.id
+          : activeInputDim.id === dim.id;
+
+        // In FINAL mode, emphasize the unified Dimension score and clean summary
+        const subPillsHtml = dim.subcategories.map(sub => {
+          const lvl = state.levels[sub.id] || 0;
+          const isSubActive = state.viewMode === "INPUT" && state.activeSubcatId === sub.id;
+          return `
+            <button type="button"
+                    onclick="selectSubcat('${sub.id}')"
+                    class="w-full px-2 py-1 rounded border flex items-center justify-between gap-1 text-left transition ${
+                      isSubActive
+                        ? 'bg-[#1a2336] border-white/70'
+                        : 'bg-[#0b0f18] border-[#1b2335] hover:border-slate-600'
+                    }">
+              <span class="text-[10px] font-semibold text-slate-300 truncate">${sub.shortName}</span>
+              <span class="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded"
+                    style="background:${lvl > 0 ? dimColor + '28' : '#161e2e'};
+                           color:${lvl > 0 ? dimColor : '#64748b'}">
+                ${lvl > 0 ? OPACITY_META[lvl].pct : '3-Split'}
+              </span>
+            </button>
+          `;
+        }).join("");
+
+        return `
+          <div onclick="${state.viewMode === 'FINAL' ? `selectFinalDimension('${dim.id}')` : ''}"
+               class="rounded-xl bg-[#0e131f] border transition p-2.5 flex flex-col justify-between cursor-pointer ${
+                 isCardFocused ? 'border-slate-300/80 shadow-lg' : 'border-[#1c2436]'
+               }">
+            <div>
+              <!-- Dimension Result Header -->
+              <div class="flex items-center justify-between gap-1 pb-1.5 mb-1.5 border-b border-[#1b2335]">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2.5 h-2.5 rounded-xs shrink-0"
+                        style="background:${dimColor}; opacity:${agg.chosenCount > 0 ? agg.avgAlpha : 0.45}"></span>
+                  <h3 class="font-display font-bold text-xs tracking-wider text-white truncate">
+                    ${dim.name}
+                  </h3>
+                </div>
+                <span class="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-[#070a11] border border-[#222c42]"
+                      style="color:${agg.chosenCount > 0 ? dimColor : '#64748b'}">
+                  ${agg.chosenCount > 0 ? agg.pctText : '—'}
+                </span>
+              </div>
+
+              <!-- Result Opacity Meter Bar (Solely for this Dimension) -->
+              <div class="w-full h-2 bg-[#070a10] rounded-full overflow-hidden border border-[#1a2234] mb-2">
+                <div class="h-full transition-all duration-300 rounded-full"
+                     style="width: ${agg.chosenCount > 0 ? agg.pctVal : 0}%;
+                            background-color: ${dimColor};
+                            opacity: ${agg.chosenCount > 0 ? Math.max(0.35, agg.avgAlpha) : 0}"></div>
+              </div>
+
+              <!-- 3 Subcategory Choice Pills -->
+              <div class="space-y-1">
+                ${subPillsHtml}
+              </div>
+            </div>
+
+            <!-- Dimension Synthesis Footer -->
+            <div class="mt-2 pt-1.5 border-t border-[#171f30] flex items-center justify-between text-[10px]">
+              <span class="font-mono uppercase tracking-wider font-bold"
+                    style="color:${agg.chosenCount > 0 ? dimColor : '#64748b'}">
+                ${agg.tierLabel}
+              </span>
+              <span class="text-slate-400 font-mono">${agg.chosenCount}/3 merged</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderAll() {
+      renderHeaderAndStatus();
+      renderHudBar();
+      renderWovenSvg();
+      renderDimensionGrid();
+    }
+
+    /*************************************************************************
+     * 8. INITIALIZATION & TOP BAR EVENTS
+     *************************************************************************/
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("paletteToggleBtn").addEventListener("click", () => {
+        state.paletteMode = state.paletteMode === "7HUES" ? "MONO" : "7HUES";
+        document.getElementById("paletteLabel").textContent =
+          state.paletteMode === "7HUES" ? "7 Hues" : "Cyan Weave";
+        renderAll();
+      });
+
+      document.getElementById("resetSchemeBtn").addEventListener("click", () => {
+        stopAutoPlayWave();
+        state.viewMode = "INPUT";
+        state.levels = {};
+        state.morphs = {};
+        state.activeSubcatId = ORDERED_SUBCATS[0].sub.id;
+        renderAll();
+      });
+
+      // Start clean at 0/21 with all 21 subcategories showing their 3-triangle opacity split,
+      // and immediately morph the first subcategory ("Respect") after a brief moment or let the user click!
+      renderAll();
+    });
+  </script>
+</body>
+</html>
